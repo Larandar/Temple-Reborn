@@ -1,0 +1,20 @@
+{
+    // Never use anything different from 4 spaces
+    "editor.detectIndentation": false,
+    "editor.insertSpaces": true,
+    "editor.tabSize": 4,
+    "prettier.tabWidth": 4,
+
+    // Configure prettier for all files
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "[typescript]": {
+        "editor.tabSize": 4,
+        "editor.defaultFormatter": "vscode.typescript-language-features"
+    },
+
+    // Formating on save
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": true
+    }
+}
