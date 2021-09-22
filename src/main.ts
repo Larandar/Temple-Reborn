@@ -1,69 +1,36 @@
 import {
     App,
-    Modal,
-    Notice,
     Plugin,
     PluginSettingTab,
     Setting
 } from "obsidian";
 
-interface MyPluginSettings {
-    mySetting: string;
+interface TempleCoreSettings {
+    templateDirectory: string;
 }
 
-const DEFAULT_SETTINGS: MyPluginSettings = {
-    mySetting: "default",
+const DEFAULT_SETTINGS: TempleCoreSettings = {
+    templateDirectory: "_templates",
 };
 
-export default class MyPlugin extends Plugin {
-    settings: MyPluginSettings;
+export default class TempleRebornPlugin extends Plugin {
+    settings: TempleCoreSettings;
 
     async onload() {
-        console.log("loading plugin");
-
+        // Laod plugin settings
         await this.loadSettings();
 
-        this.addRibbonIcon("dice", "Sample Plugin", () => {
-            new Notice("This is a notice!");
-        });
-
-        this.addStatusBarItem().setText("Status Bar Text");
-
+        // Register "Insert Template"
         this.addCommand({
-            id: "open-sample-modal",
-            name: "Open Sample Modal",
-            // callback: () => {
-            // 	console.log('Simple Callback');
-            // },
-            checkCallback: (checking: boolean) => {
-                let leaf = this.app.workspace.activeLeaf;
-                if (leaf) {
-                    if (!checking) {
-                        new SampleModal(this.app).open();
-                    }
-                    return true;
-                }
-                return false;
+            id: "insert-template",
+            name: "Insert Template",
+            callback: () => {
+                // TODO: Add template insertion
             },
         });
 
-        this.addSettingTab(new SampleSettingTab(this.app, this));
-
-        this.registerCodeMirror((cm: CodeMirror.Editor) => {
-            console.log("codemirror", cm);
-        });
-
-        this.registerDomEvent(document, "click", (evt: MouseEvent) => {
-            console.log("click", evt);
-        });
-
-        this.registerInterval(
-            window.setInterval(() => console.log("setInterval"), 5 * 60 * 1000)
-        );
-    }
-
-    onunload() {
-        console.log("unloading plugin");
+        // Register the setting tab
+        this.addSettingTab(new TempleSettingTab(this.app, this));
     }
 
     async loadSettings() {
@@ -75,26 +42,10 @@ export default class MyPlugin extends Plugin {
     }
 }
 
-class SampleModal extends Modal {
-    constructor(app: App) {
-        super(app);
-    }
+class TempleSettingTab extends PluginSettingTab {
+    plugin: TempleRebornPlugin;
 
-    onOpen() {
-        let { contentEl } = this;
-        contentEl.setText("Woah!");
-    }
-
-    onClose() {
-        let { contentEl } = this;
-        contentEl.empty();
-    }
-}
-
-class SampleSettingTab extends PluginSettingTab {
-    plugin: MyPlugin;
-
-    constructor(app: App, plugin: MyPlugin) {
+    constructor(app: App, plugin: TempleRebornPlugin) {
         super(app, plugin);
         this.plugin = plugin;
     }
@@ -104,20 +55,21 @@ class SampleSettingTab extends PluginSettingTab {
 
         containerEl.empty();
 
-        containerEl.createEl("h2", { text: "Settings for my awesome plugin." });
+        // --- Core settings ---
+        containerEl.createEl("h2", { text: "Core settings." });
 
+        // core.templateDir
         new Setting(containerEl)
-            .setName("Setting #1")
-            .setDesc("It's a secret")
-            .addText((text) =>
-                text
-                    .setPlaceholder("Enter your secret")
-                    .setValue("")
-                    .onChange(async (value) => {
-                        console.log("Secret: " + value);
-                        this.plugin.settings.mySetting = value;
-                        await this.plugin.saveSettings();
-                    })
-            );
+            .setName("Template folder location")
+            .setDesc("Files in this directory will be available as templates.")
+            .addSearch(search => {
+                // TODO: add suggestion
+                search.onChange(async value => {
+                    this.plugin.settings.templateDirectory = value;
+                    await this.plugin.saveSettings();
+                })
+            })
     }
+
+
 }
