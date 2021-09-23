@@ -193,61 +193,48 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
     abstract selectSuggestion(item: T): void;
 }
 
-export class FileSuggest extends TextInputSuggest<TFile> {
-    getSuggestions(inputStr: string): TFile[] {
-        const abstractFiles = this.app.vault.getAllLoadedFiles();
-        const files: TFile[] = [];
-        const lowerCaseInputStr = inputStr.toLowerCase();
+export class PathSuggest extends TextInputSuggest<TAbstractFile> {
+    protected predicates: ((f: TAbstractFile) => boolean)[] = []
 
-        abstractFiles.forEach((file: TAbstractFile) => {
-            if (
-                file instanceof TFile &&
-                file.extension === "md" &&
-                file.path.toLowerCase().contains(lowerCaseInputStr)
-            ) {
-                files.push(file);
-            }
-        });
-
-        return files;
+    constructor(
+        app: App,
+        inputEl: HTMLInputElement,
+    ) {
+        super(app, inputEl)
     }
 
-    renderSuggestion(file: TFile, el: HTMLElement): void {
+    getSuggestions(inputStr: string): TAbstractFile[] {
+        return this.app.vault.getAllLoadedFiles()
+            .filter(x => this.predicates.every(p => p(x)))
+            .filter(x => x.path.toLowerCase().contains(inputStr.toLowerCase()))
+    }
+
+    renderSuggestion(file: TAbstractFile, el: HTMLElement): void {
         el.setText(file.path);
     }
 
-    selectSuggestion(file: TFile): void {
+    selectSuggestion(file: TAbstractFile): void {
         this.inputEl.value = file.path;
         this.inputEl.trigger("input");
         this.close();
     }
 }
 
-export class FolderSuggest extends TextInputSuggest<TFolder> {
-    getSuggestions(inputStr: string): TFolder[] {
-        const abstractFiles = this.app.vault.getAllLoadedFiles();
-        const folders: TFolder[] = [];
-        const lowerCaseInputStr = inputStr.toLowerCase();
+export class FolderSuggest extends PathSuggest {
+    protected predicates: ((f: TAbstractFile) => boolean)[] = [
+        f => f instanceof TFolder,
+    ]
+}
 
-        abstractFiles.forEach((folder: TAbstractFile) => {
-            if (
-                folder instanceof TFolder &&
-                folder.path.toLowerCase().contains(lowerCaseInputStr)
-            ) {
-                folders.push(folder);
-            }
-        });
+export class FileSuggest extends PathSuggest {
+    protected predicates: ((f: TAbstractFile) => boolean)[] = [
+        f => f instanceof TFile,
+    ]
+}
 
-        return folders;
-    }
-
-    renderSuggestion(file: TFolder, el: HTMLElement): void {
-        el.setText(file.path);
-    }
-
-    selectSuggestion(file: TFolder): void {
-        this.inputEl.value = file.path;
-        this.inputEl.trigger("input");
-        this.close();
-    }
+export class NoteSuggest extends PathSuggest {
+    protected predicates: ((f: TAbstractFile) => boolean)[] = [
+        f => f instanceof TFile,
+        f => f.path.toLowerCase().endsWith(".md"),
+    ]
 }
