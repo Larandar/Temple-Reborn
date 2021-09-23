@@ -21,6 +21,7 @@
     "typescript": "^4.2.4"
   },
   "dependencies": {
+    "@popperjs/core": "^2.10.1",
     "lodash": "^4.17.21",
     "nunjucks": "^3.2.3",
     "obsidian": "^0.12.16",
