@@ -1,0 +1,6 @@
+**/*
+!/.gitignore
+!/WELCOME.md
+!/_templates/
+!/_templates/Journal.md
+!/_templates/Zettle.md
