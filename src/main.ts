@@ -22,6 +22,9 @@ interface TempleCoreSettings {
         defaultFormat: string
         locale: string
         timezone: string
+    },
+    zettel: {
+        regex: string
     }
 }
 
@@ -35,6 +38,9 @@ const DEFAULT_SETTINGS: TempleCoreSettings = {
         defaultFormat: "yyyy-MM-dd HH:mm",
         locale: "",
         timezone: "",
+    },
+    zettel: {
+        regex: String.raw`^(?<uid>\d+)(?:\b[\s-]+\b(?<title>.*))?$`
     }
 };
 
@@ -112,8 +118,30 @@ export default class TempleRebornPlugin extends Plugin {
 
         // !SECTION
 
+        // SECTION Zettel
 
-        let renderContext = {}
+        /**
+         * Add any groups matching zettel.regex to a zettel object in the context
+         *
+         * NOTE in case a custom regex does not provide a uid or title group the default ones will be present
+         */
+        let zettelContext = (file: TFile) => {
+            let defaults = file.basename.match(DEFAULT_SETTINGS.zettel.regex)?.groups
+            let custom = file.basename.match(this.settings.zettel.regex)?.groups
+            return { ...defaults, ...custom }
+        }
+
+        // !SECTION
+
+        // SECTION Rendering
+
+        let renderContext = (file: TFile): Object => {
+            return {
+                file,
+                zettel: zettelContext(file)
+            }
+        }
+
         let renderTemplate = async (template: string | TFile, context: object) => {
             if (template instanceof TFile) {
                 template = await this.app.vault.read(template)
@@ -121,6 +149,8 @@ export default class TempleRebornPlugin extends Plugin {
 
             return nunjucks.renderString(template, context)
         }
+
+        // !SECTION
 
         // Register "Insert Template"
         this.addCommand({
@@ -136,10 +166,7 @@ export default class TempleRebornPlugin extends Plugin {
                     let modal = new TemplateSuggestModal(this.app, this)
                     let templateFile: TFile = await modal.open()
 
-                    let renderedTemplate = await renderTemplate(templateFile, {
-                        file: view.file,
-                        ...renderContext
-                    })
+                    let renderedTemplate = await renderTemplate(templateFile, renderContext(view.file))
 
                     // Replace the currently selected portion of the editor
                     editor.replaceSelection(renderedTemplate)
@@ -165,10 +192,7 @@ export default class TempleRebornPlugin extends Plugin {
                     let templateFile = view.file
 
                     // Render the template
-                    let renderedTemplate = await renderTemplate(templateFile, {
-                        file: view.file,
-                        ...renderContext
-                    })
+                    let renderedTemplate = await renderTemplate(templateFile, renderContext(view.file))
 
                     await this.app.vault.modify(view.file, renderedTemplate)
                 })()
@@ -191,10 +215,7 @@ export default class TempleRebornPlugin extends Plugin {
                 (async () => {
                     let templateSelection = editor.getSelection()
 
-                    let renderedTemplate = await renderTemplate(templateSelection, {
-                        file: view.file,
-                        ...renderContext
-                    })
+                    let renderedTemplate = await renderTemplate(templateSelection, renderContext(view.file))
 
                     // Replace the currently selected portion of the editor
                     view.editor.replaceSelection(renderedTemplate)
