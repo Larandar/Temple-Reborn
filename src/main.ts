@@ -1,3 +1,4 @@
+import { DateTime } from 'luxon';
 import "nunjucks";
 import { Environment } from "nunjucks";
 import {
@@ -17,6 +18,11 @@ interface TempleCoreSettings {
         enable: boolean
         regex: string
     }
+    datetimeSettings: {
+        defaultFormat: string
+        locale: string
+        timezone: string
+    }
 }
 
 const DEFAULT_SETTINGS: TempleCoreSettings = {
@@ -24,8 +30,17 @@ const DEFAULT_SETTINGS: TempleCoreSettings = {
     filterTemplateSelect: {
         enable: true,
         regex: "^_",
+    },
+    datetimeSettings: {
+        defaultFormat: "yyyy-MM-dd HH:mm",
+        locale: "",
+        timezone: "",
     }
 };
+
+class DateTimeParsingError extends Error { }
+
+// TODO[epic=editor]: Add syntax highlighting support
 
 export default class TempleRebornPlugin extends Plugin {
     settings: TempleCoreSettings
@@ -40,7 +55,63 @@ export default class TempleRebornPlugin extends Plugin {
             return view && view.editor && true;
         }
 
+        // TODO[epic=render-heirarchy]: Add custom template loader based on `obsidian.vault`
         let nunjucks = new Environment()
+
+        // SECTION: DateTime filters
+
+        // TODO[epic=refactor]: Move to dedicated modules
+        /**
+        * Apply locale and timezone settings, also cast JS Date (returned from other APIs)
+        *
+        * Since apply is called by all filters that return a DateTime to ensure that
+        * settings are respected all implicit conversion and maniputlations should be
+        * concentrated here.
+        */
+        let coerceDateTime = (dt: DateTime | Date | number): DateTime => {
+            // Type verification and casting
+            if (typeof dt == "number") {
+                dt = DateTime.fromMillis(dt as number);
+            } else if (dt instanceof Date) {
+                dt = DateTime.fromJSDate(dt as Date);
+            } else if (!(dt instanceof DateTime)) {
+                console.error("Rejected DateTime value:", dt)
+                throw TypeError("Only DateTime, Date and ints are accepted for date filters");
+            }
+
+            // Apply localization settings
+            if (this.settings.datetimeSettings.locale) {
+                dt = dt.setLocale(this.settings.datetimeSettings.locale);
+            }
+            if (this.settings.datetimeSettings.timezone) {
+                dt = dt.setZone(this.settings.datetimeSettings.timezone);
+            }
+
+            return dt;
+        }
+
+        nunjucks.addFilter('parseDate', (input, format) => {
+            if (!format) throw TypeError("A format is required for parseDate")
+            const parsed = DateTime.fromFormat(input, format)
+            if (parsed.invalidReason) throw new DateTimeParsingError(`${parsed.invalidReason}: ${parsed.invalidExplanation}`);
+            return parsed
+        })
+
+        nunjucks.addFilter('now', () => {
+            return coerceDateTime(DateTime.local())
+        })
+
+        nunjucks.addFilter('today', () => {
+            return coerceDateTime(DateTime.local()).startOf("day")
+        })
+
+        nunjucks.addFilter('formatDate', (date, format) => {
+            return coerceDateTime(date)
+                .toFormat(format || this.settings.datetimeSettings.defaultFormat)
+        })
+
+        // !SECTION
+
 
         let renderContext = {}
         let renderTemplate = async (template: string | TFile, context: object) => {
