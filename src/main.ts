@@ -14,6 +14,7 @@ import { FolderSuggest } from "suggest";
 
 interface TempleCoreSettings {
     templateDirectory: string
+    triggerRenderOnFileCreation: boolean
     filterTemplateSelect: {
         enable: boolean
         regex: string
@@ -30,6 +31,7 @@ interface TempleCoreSettings {
 
 const DEFAULT_SETTINGS: TempleCoreSettings = {
     templateDirectory: "_templates",
+    triggerRenderOnFileCreation: true,
     filterTemplateSelect: {
         enable: true,
         regex: "^_",
@@ -225,6 +227,21 @@ export default class TempleRebornPlugin extends Plugin {
 
         // Register the setting tab
         this.addSettingTab(new TempleSettingTab(this.app, this));
+
+        // Register the onSave handler
+        this.app.vault.on('create', async (file: TFile) => {
+            if (!this.settings.triggerRenderOnFileCreation) {
+                return
+            } else if (file.extension != "md") {
+                return
+            }
+
+            // Wait for vault cache to be updated and/or file sync
+            await new Promise((resolve, _) => { setTimeout(resolve, 300) })
+
+            let renderedTemplate = await renderTemplate(file, renderContext(file))
+            await this.app.vault.modify(file, renderedTemplate)
+        })
     }
 
     async loadSettings() {
