@@ -347,6 +347,45 @@ class TempleSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 })
             })
+
+        // core.triggerRenderOnFileCreation
+        // TODO[epic=settings]: Add setting for core.triggerRenderOnFileCreation
+
+        // --- Datetime settings ---
+        containerEl.createEl("h2", { text: "Datetime settings." });
+
+        // datetime.defaultFormat
+        new Setting(containerEl)
+            .setName("Default DateTime format")
+            .setDesc(`Format to use when using the 'formatDate' filter without argument (Default: ${DEFAULT_SETTINGS.datetime.defaultFormat}).`)
+            .addText((text: TextComponent) => {
+                text.setValue(this.plugin.settings.datetime.defaultFormat)
+                text.onChange(async value => {
+                    this.plugin.settings.datetime.defaultFormat = value;
+                    await this.plugin.saveSettings();
+                })
+            })
+
+        // datetime.timezone
+        // TODO[epic=settings]: Add setting for datetime.timezone
+
+        // datetime.locale
+        // TODO[epic=settings]: Add setting for datetime.locale
+
+        // --- Zettelkasten settings ---
+
+        // zettelkasten.regex
+        new Setting(containerEl)
+            .setName("Zettelkasten regular expression")
+            .setDesc(`Regular expression to use to parse zettelkasten info from the filename (Default: '${DEFAULT_SETTINGS.zettelkasten.regex}').`)
+            .addText((text: TextComponent) => {
+                text.setValue(this.plugin.settings.zettelkasten.regex)
+                text.onChange(async value => {
+                    this.plugin.settings.zettelkasten.regex = value;
+                    await this.plugin.saveSettings();
+                })
+            })
+
     }
 }
 
