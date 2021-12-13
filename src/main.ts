@@ -13,11 +13,13 @@ import {
 import { FolderSuggest } from "suggest";
 
 interface TempleCoreSettings {
-    templateDirectory: string
-    triggerRenderOnFileCreation: boolean
-    filterTemplateSelect: {
-        enable: boolean
-        regex: string
+    core: {
+        templateDirectory: string
+        triggerRenderOnFileCreation: boolean
+        filterTemplateSelect: {
+            enable: boolean
+            regex: string
+        }
     }
     datetimeSettings: {
         defaultFormat: string
@@ -30,11 +32,13 @@ interface TempleCoreSettings {
 }
 
 const DEFAULT_SETTINGS: TempleCoreSettings = {
-    templateDirectory: "_templates",
-    triggerRenderOnFileCreation: true,
-    filterTemplateSelect: {
-        enable: true,
-        regex: "^_",
+    core: {
+        templateDirectory: "_templates",
+        triggerRenderOnFileCreation: true,
+        filterTemplateSelect: {
+            enable: true,
+            regex: "^_",
+        },
     },
     datetimeSettings: {
         defaultFormat: "yyyy-MM-dd HH:mm",
@@ -230,9 +234,16 @@ export default class TempleRebornPlugin extends Plugin {
 
         // Register the onSave handler
         this.app.vault.on('create', async (file: TFile) => {
-            if (!this.settings.triggerRenderOnFileCreation) {
+            // Follow settings
+            if (!this.settings.core.triggerRenderOnFileCreation) {
                 return
-            } else if (file.extension != "md") {
+            }
+            // Only trigger on files
+            if (!(file instanceof TFile) || file.extension != "md") {
+                return
+            }
+            // Avoid triggrering for template files (ie when syncing templateDir)
+            if (file.path.startsWith(this.settings.core.templateDirectory) && this.settings.core.templateDirectory != "/") {
                 return
             }
 
@@ -274,9 +285,9 @@ class TempleSettingTab extends PluginSettingTab {
             .setName("Template folder location")
             .setDesc("Files in this directory will be available as templates.")
             .addSearch((search: SearchComponent) => {
-                search.setValue(this.plugin.settings.templateDirectory)
+                search.setValue(this.plugin.settings.core.templateDirectory)
                 search.onChange(async value => {
-                    this.plugin.settings.templateDirectory = value;
+                    this.plugin.settings.core.templateDirectory = value;
                     await this.plugin.saveSettings();
                 })
 
@@ -289,9 +300,9 @@ class TempleSettingTab extends PluginSettingTab {
             .setName("Files to exclude from fuzzy search")
             .setDesc("Files matching the regex will be ignored (Default: any file starting by `_`).")
             .addText((text: TextComponent) => {
-                text.setValue(this.plugin.settings.filterTemplateSelect.regex)
+                text.setValue(this.plugin.settings.core.filterTemplateSelect.regex)
                 text.onChange(async value => {
-                    this.plugin.settings.filterTemplateSelect.regex = value;
+                    this.plugin.settings.core.filterTemplateSelect.regex = value;
                     await this.plugin.saveSettings();
                 })
             })
@@ -320,10 +331,10 @@ class TemplateSuggestModal extends FuzzySuggestModal<TFile> {
 
     getItems(): TFile[] {
         return this.app.vault.getMarkdownFiles()
-            .filter(f => f.path.startsWith(this.plugin.settings.templateDirectory))
+            .filter(f => f.path.startsWith(this.plugin.settings.core.templateDirectory))
             .filter(f => !(
-                this.plugin.settings.filterTemplateSelect.enable &&
-                f.basename.match(this.plugin.settings.filterTemplateSelect.regex)
+                this.plugin.settings.core.filterTemplateSelect.enable &&
+                f.basename.match(this.plugin.settings.core.filterTemplateSelect.regex)
             ))
     }
     getItemText(item: TFile): string {
