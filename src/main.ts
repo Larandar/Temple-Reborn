@@ -65,18 +65,12 @@ export default class TempleRebornPlugin extends Plugin {
         // Laod plugin settings
         await this.loadSettings();
 
-        let isEditorPanel = (view: MarkdownView) => {
-            // If checking then we just want to verify we have access to the editor
-            // FIXME[epic=enhancement]: find a way to determine if the editor is active
-            return view && view.editor && true;
-        }
-
         // TODO[epic=render-heirarchy]: Add custom template loader based on `obsidian.vault`
         let nunjucks = new Environment()
 
         // SECTION: DateTime filters
-
         // TODO[epic=refactor]: Move to dedicated modules
+
         /**
         * Apply locale and timezone settings, also cast JS Date (returned from other APIs)
         *
@@ -145,6 +139,26 @@ export default class TempleRebornPlugin extends Plugin {
 
         // SECTION Rendering
 
+        /**
+         * Determine if the current view an active editor
+         *
+         * @param view Obsidian view object
+         * @returns boolean
+         */
+        let isEditorPanel = (view: MarkdownView) => {
+            // FIXME[epic=enhancement]: find a better way to determine if the editor is active
+            return view && view.editor && true;
+        }
+
+
+        /**
+         * Assemble all the data needed to render a template in a nunjuck's context
+         *
+         * TODO[epic=enhancement]: Add context provider injuection
+         *
+         * @param file The file that will be randered
+         * @returns A nunjucks context for the template
+         */
         let renderContext = (file: TFile): Object => {
             return {
                 file,
@@ -152,6 +166,15 @@ export default class TempleRebornPlugin extends Plugin {
             }
         }
 
+        /**
+         * Render a template with the given context
+         *
+         * TODO[epic=error-handling]: Add error handling
+         *
+         * @param template The template to render (either a string or a file)
+         * @param context Data to render the template with
+         * @returns rendered template as a string
+         */
         let renderTemplate = async (template: string | TFile, context: object) => {
             if (template instanceof TFile) {
                 template = await this.app.vault.read(template)
@@ -204,6 +227,7 @@ export default class TempleRebornPlugin extends Plugin {
                     // Render the template
                     let renderedTemplate = await renderTemplate(templateFile, renderContext(view.file))
 
+                    // Replace the complete file
                     await this.app.vault.modify(view.file, renderedTemplate)
                 })()
             }
@@ -219,12 +243,13 @@ export default class TempleRebornPlugin extends Plugin {
                     return isEditorPanel(view)
                         && view.editor.getSelection().length > 0;
                 }
-                const editor = view.editor;
 
                 // Trick to run async part in a sync callback
                 (async () => {
-                    let templateSelection = editor.getSelection()
+                    // If only a part of the file is selected, then we only render that part
+                    let templateSelection = view.editor.getSelection()
 
+                    // Render the template
                     let renderedTemplate = await renderTemplate(templateSelection, renderContext(view.file))
 
                     // Replace the currently selected portion of the editor
@@ -236,7 +261,13 @@ export default class TempleRebornPlugin extends Plugin {
         // Register the setting tab
         this.addSettingTab(new TempleSettingTab(this.app, this));
 
-        // Register the onSave handler
+        /**
+         * Event handler for triggerRenderOnFileCreation
+         *
+         * NOTE: This functionality may be out of scope of the extension and it might be
+         *       adequate to move it to a dedicated "Automating Commands" extension
+         * @param file The file that was created
+         */
         this.app.vault.on('create', async (file: TFile) => {
             // Follow settings
             if (!this.settings.core.triggerRenderOnFileCreation) {
@@ -259,10 +290,16 @@ export default class TempleRebornPlugin extends Plugin {
         })
     }
 
+    /**
+     * Load the settings using Obsidian's data API and merge them with the default settings
+     */
     async loadSettings() {
         this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
     }
 
+    /**
+     * Save the settings using Obsidian's data API
+     */
     async saveSettings() {
         await this.saveData(this.settings);
     }
