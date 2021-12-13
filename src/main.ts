@@ -21,12 +21,14 @@ interface TempleCoreSettings {
             regex: string
         }
     }
-    datetimeSettings: {
+
+    datetime: {
         defaultFormat: string
         locale: string
         timezone: string
-    },
-    zettel: {
+    }
+
+    zettelkasten: {
         regex: string
     }
 }
@@ -40,14 +42,16 @@ const DEFAULT_SETTINGS: TempleCoreSettings = {
             regex: "^_",
         },
     },
-    datetimeSettings: {
+
+    datetime: {
         defaultFormat: "yyyy-MM-dd HH:mm",
         locale: "",
         timezone: "",
     },
-    zettel: {
-        regex: String.raw`^(?<uid>\d+)(?:\b[\s-]+\b(?<title>.*))?$`
-    }
+
+    zettelkasten: {
+        regex: String.raw`^(?<uid>\d+)(?:\b[\s-]+\b(?<title>.*))?$`,
+    },
 };
 
 class DateTimeParsingError extends Error { }
@@ -92,11 +96,11 @@ export default class TempleRebornPlugin extends Plugin {
             }
 
             // Apply localization settings
-            if (this.settings.datetimeSettings.locale) {
-                dt = dt.setLocale(this.settings.datetimeSettings.locale);
+            if (this.settings.datetime.locale) {
+                dt = dt.setLocale(this.settings.datetime.locale);
             }
-            if (this.settings.datetimeSettings.timezone) {
-                dt = dt.setZone(this.settings.datetimeSettings.timezone);
+            if (this.settings.datetime.timezone) {
+                dt = dt.setZone(this.settings.datetime.timezone);
             }
 
             return dt;
@@ -119,7 +123,7 @@ export default class TempleRebornPlugin extends Plugin {
 
         nunjucks.addFilter('formatDate', (date, format) => {
             return coerceDateTime(date)
-                .toFormat(format || this.settings.datetimeSettings.defaultFormat)
+                .toFormat(format || this.settings.datetime.defaultFormat)
         })
 
         // !SECTION
@@ -129,11 +133,11 @@ export default class TempleRebornPlugin extends Plugin {
         /**
          * Add any groups matching zettel.regex to a zettel object in the context
          *
-         * NOTE in case a custom regex does not provide a uid or title group the default ones will be present
+         * NOTE in case a custom regex does not provide a uid or title group the default ones will be provided
          */
-        let zettelContext = (file: TFile) => {
-            let defaults = file.basename.match(DEFAULT_SETTINGS.zettel.regex)?.groups
-            let custom = file.basename.match(this.settings.zettel.regex)?.groups
+        let zettelkastenContext = (file: TFile) => {
+            let defaults = file.basename.match(DEFAULT_SETTINGS.zettelkasten.regex)?.groups
+            let custom = file.basename.match(this.settings.zettelkasten.regex)?.groups
             return { ...defaults, ...custom }
         }
 
@@ -144,7 +148,7 @@ export default class TempleRebornPlugin extends Plugin {
         let renderContext = (file: TFile): Object => {
             return {
                 file,
-                zettel: zettelContext(file)
+                zettelkasten: zettelkastenContext(file)
             }
         }
 
