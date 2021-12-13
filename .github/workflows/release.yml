@@ -1,0 +1,32 @@
+name: Build plugin
+
+on:
+    push: { tags: ["*"] }
+
+env:
+    PLUGIN_NAME: temple-reborn
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v2
+            - name: Use Node.js
+              uses: actions/setup-node@v1
+              with:
+                  node-version: "17.x"
+
+            - name: Build
+              id: build
+              run: |
+                  npm install --global rollup
+                  npm install --include-dev
+                  BUILD=production npm run build
+
+            - name: Create Release
+              # https://github.com/ncipollo/release-action
+              uses: ncipollo/release-action@v1.7.3
+              with:
+                  artifacts: "dist/*"
+                  token: ${{ secrets.GITHUB_TOKEN }}
