@@ -185,6 +185,8 @@ export default class TempleRebornPlugin extends Plugin {
 
         // !SECTION
 
+        // SECTION: Registering commands
+
         // Register "Insert Template"
         this.addCommand({
             id: "insert-template",
@@ -258,9 +260,20 @@ export default class TempleRebornPlugin extends Plugin {
             }
         })
 
+        // !SECTION
+
         // Register the setting tab
         this.addSettingTab(new TempleSettingTab(this.app, this));
 
+        // Register event handlers
+        // FIXME[epic=render-new-files]: Correctly register and unregister event handlers after vault finished loading
+        // this.registerEventHandlers(renderTemplate, renderContext);
+    }
+
+    registerEventHandlers(
+        renderTemplate: (template: string | TFile, context: object) => Promise<string>,
+        renderContext: (file: TFile) => Object,
+    ) {
         /**
          * Event handler for triggerRenderOnFileCreation
          *
