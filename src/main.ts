@@ -2,35 +2,30 @@ import { DateTime } from 'luxon';
 import "nunjucks";
 import { Environment } from "nunjucks";
 import {
-    App,
-    FuzzySuggestModal, MarkdownView, Plugin,
-    PluginSettingTab,
-    SearchComponent,
-    Setting,
-    TextComponent,
-    TFile
+    App, EventRef, FuzzySuggestModal, MarkdownView, Plugin, PluginSettingTab,
+    SearchComponent, Setting, TextComponent, TFile
 } from "obsidian";
 import { FolderSuggest } from "suggest";
 
 interface TempleCoreSettings {
     core: {
-        templateDirectory: string
-        triggerRenderOnFileCreation: boolean
+        templateDirectory: string;
+        triggerRenderOnFileCreation: boolean;
         filterTemplateSelect: {
-            enable: boolean
-            regex: string
-        }
-    }
+            enable: boolean;
+            regex: string;
+        };
+    };
 
     datetime: {
-        defaultFormat: string
-        locale: string
-        timezone: string
-    }
+        defaultFormat: string;
+        locale: string;
+        timezone: string;
+    };
 
     zettelkasten: {
-        regex: string
-    }
+        regex: string;
+    };
 }
 
 const DEFAULT_SETTINGS: TempleCoreSettings = {
@@ -60,6 +55,7 @@ class DateTimeParsingError extends Error { }
 
 export default class TempleRebornPlugin extends Plugin {
     settings: TempleCoreSettings
+    eventHandlers: TempleEventHandlers
 
     async onload() {
         // Laod plugin settings
@@ -266,40 +262,9 @@ export default class TempleRebornPlugin extends Plugin {
         this.addSettingTab(new TempleSettingTab(this.app, this));
 
         // Register event handlers
-        // FIXME[epic=render-new-files]: Correctly register and unregister event handlers after vault finished loading
-        // this.registerEventHandlers(renderTemplate, renderContext);
-    }
-
-    registerEventHandlers(
-        renderTemplate: (template: string | TFile, context: object) => Promise<string>,
-        renderContext: (file: TFile) => Object,
-    ) {
-        /**
-         * Event handler for triggerRenderOnFileCreation
-         *
-         * NOTE: This functionality may be out of scope of the extension and it might be
-         *       adequate to move it to a dedicated "Automating Commands" extension
-         * @param file The file that was created
-         */
-        this.app.vault.on('create', async (file: TFile) => {
-            // Follow settings
-            if (!this.settings.core.triggerRenderOnFileCreation) {
-                return
-            }
-            // Only trigger on files
-            if (!(file instanceof TFile) || file.extension != "md") {
-                return
-            }
-            // Avoid triggrering for template files (ie when syncing templateDir)
-            if (file.path.startsWith(this.settings.core.templateDirectory) && this.settings.core.templateDirectory != "/") {
-                return
-            }
-
-            // Wait for vault cache to be updated and/or file sync
-            await new Promise((resolve, _) => { setTimeout(resolve, 300) })
-
-            let renderedTemplate = await renderTemplate(file, renderContext(file))
-            await this.app.vault.modify(file, renderedTemplate)
+        this.eventHandlers = new TempleEventHandlers(this.app, this)
+        this.app.workspace.onLayoutReady(() => {
+            this.eventHandlers.register(renderTemplate, renderContext)
         })
     }
 
@@ -315,6 +280,50 @@ export default class TempleRebornPlugin extends Plugin {
      */
     async saveSettings() {
         await this.saveData(this.settings);
+    }
+}
+
+class TempleEventHandlers {
+    private onCreate: EventRef = null;
+
+    constructor(private app: App, private plugin: TempleRebornPlugin) {
+    }
+
+    register(
+        renderTemplate: (template: string | TFile, context: object) => Promise<string>,
+        renderContext: (file: TFile) => Object
+    ) {
+        // Remove previous event handler
+        if (this.onCreate)
+            this.app.vault.offref(this.onCreate);
+
+        /**
+         * Event handler for triggerRenderOnFileCreation
+         *
+         * NOTE: This functionality may be out of scope of the extension and it might be
+         *       adequate to move it to a dedicated "Automating Commands" extension
+         * @param file The file that was created
+         */
+        this.onCreate = this.app.vault.on('create', async (file: TFile) => {
+            // Follow settings
+            if (!this.plugin.settings.core.triggerRenderOnFileCreation)
+                return;
+
+            // Only trigger on files
+            if (!(file instanceof TFile) || file.extension != "md")
+                return;
+
+            // Avoid triggrering for template files (ie when syncing templateDir)
+            let templateDir = this.plugin.settings.core.templateDirectory;
+            if (file.path.startsWith(templateDir) && templateDir != "/")
+                return;
+
+            // Wait for vault cache to be updated and/or file sync
+            await new Promise((resolve, _) => { setTimeout(resolve, 300); });
+
+            let renderedTemplate = await renderTemplate(file, renderContext(file));
+            await this.app.vault.modify(file, renderedTemplate);
+        });
     }
 }
 
@@ -339,14 +348,14 @@ class TempleSettingTab extends PluginSettingTab {
             .setName("Template folder location")
             .setDesc("Files in this directory will be available as templates.")
             .addSearch((search: SearchComponent) => {
-                search.setValue(this.plugin.settings.core.templateDirectory)
-                search.onChange(async value => {
+                search.setValue(this.plugin.settings.core.templateDirectory);
+                search.onChange(async (value) => {
                     this.plugin.settings.core.templateDirectory = value;
                     await this.plugin.saveSettings();
-                })
+                });
 
-                new FolderSuggest(this.app, search.inputEl)
-            })
+                new FolderSuggest(this.app, search.inputEl);
+            });
 
         // core.filterTemplateSelect
         // TODO[epic=enhancement]: Add a toggle switch in the same line for filterTemplateSelect.enable
@@ -354,16 +363,15 @@ class TempleSettingTab extends PluginSettingTab {
             .setName("Files to exclude from fuzzy search")
             .setDesc("Files matching the regex will be ignored (Default: any file starting by `_`).")
             .addText((text: TextComponent) => {
-                text.setValue(this.plugin.settings.core.filterTemplateSelect.regex)
-                text.onChange(async value => {
+                text.setValue(this.plugin.settings.core.filterTemplateSelect.regex);
+                text.onChange(async (value) => {
                     this.plugin.settings.core.filterTemplateSelect.regex = value;
                     await this.plugin.saveSettings();
-                })
-            })
+                });
+            });
 
         // core.triggerRenderOnFileCreation
         // TODO[epic=settings]: Add setting for core.triggerRenderOnFileCreation
-
         // --- Datetime settings ---
         containerEl.createEl("h2", { text: "Datetime settings." });
 
@@ -372,12 +380,12 @@ class TempleSettingTab extends PluginSettingTab {
             .setName("Default DateTime format")
             .setDesc(`Format to use when using the 'formatDate' filter without argument (Default: ${DEFAULT_SETTINGS.datetime.defaultFormat}).`)
             .addText((text: TextComponent) => {
-                text.setValue(this.plugin.settings.datetime.defaultFormat)
-                text.onChange(async value => {
+                text.setValue(this.plugin.settings.datetime.defaultFormat);
+                text.onChange(async (value) => {
                     this.plugin.settings.datetime.defaultFormat = value;
                     await this.plugin.saveSettings();
-                })
-            })
+                });
+            });
 
         // datetime.timezone
         // TODO[epic=settings]: Add setting for datetime.timezone
@@ -392,12 +400,12 @@ class TempleSettingTab extends PluginSettingTab {
             .setName("Zettelkasten regular expression")
             .setDesc(`Regular expression to use to parse zettelkasten info from the filename (Default: '${DEFAULT_SETTINGS.zettelkasten.regex}').`)
             .addText((text: TextComponent) => {
-                text.setValue(this.plugin.settings.zettelkasten.regex)
-                text.onChange(async value => {
+                text.setValue(this.plugin.settings.zettelkasten.regex);
+                text.onChange(async (value) => {
                     this.plugin.settings.zettelkasten.regex = value;
                     await this.plugin.saveSettings();
                 })
-            })
+            });
 
     }
 }
