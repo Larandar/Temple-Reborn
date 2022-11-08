@@ -1,3 +1,8 @@
+# Temple: Reborn
+
+> The lost template engine, kissed by the devs.
+> -- Larandar, (right now, when you are reading this)
+
 <!-- PROJECT SHIELDS -->
 [![Contributors][contributors-shield]][contributors-url]
 [![Forks][forks-shield]][forks-url]
@@ -5,18 +10,13 @@
 [![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]][license-url]
 
-# Temple: Reborn
-
-> The lost template engine, kissed by the devs. <br>
-> -- Larandar, (<small>right now, when you are reading this</small>)
-
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
 A plugin for templating in Obsidian, powered by Nunjucks. Spiritual successor of
 [obsidian-temple](https://github.com/garyng/obsidian-temple).
 
-### Phylosophy
+### Philosophy
 
 - User experience first
 - Only do templating, no scripting or shenanigans
@@ -26,7 +26,7 @@ A plugin for templating in Obsidian, powered by Nunjucks. Spiritual successor of
 ### Code lineage
 
 This project is a rewrite of [obsidian-temple](https://github.com/garyng/obsidian-temple) and some
-of the code is heavily inspired from it. Unfortunally I needed to start from the ground up to suit
+of the code is heavily inspired from it. Unfortunately I needed to start from the ground up to suit
 my big-picture target.
 
 <!-- ROADMAP -->
@@ -43,9 +43,10 @@ create. Any contributions you make are **greatly appreciated**.
 
 1. Fork the Project
 2. Create your Feature Branch (`git checkout -b feature/new-feature`)
-3. Commit your Changes (`git commit -m 'Add some new feature'`)
-4. Push to the Branch (`git push origin feature/new-feature`)
-5. Open a Pull Request
+3. Start your dev server (`npm run dev`)
+4. Commit your Changes (`git commit -m 'Add some new feature'`)
+5. Push to the Branch (`git push origin feature/new-feature`)
+6. Open a Pull Request
 
 <!-- LICENSE -->
 ## License
